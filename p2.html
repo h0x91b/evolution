@@ -9,12 +9,21 @@
 	<script src="random.js"></script>
   </head>
   <body>
-
+	<div class="controlls">
+		<button onclick="zoom*=1.1">Zoom-in</button>
+		<button onclick="zoom*=0.9">Zoom-out</button>
+		<button onclick="offsetX++">Left</button>
+		<button onclick="offsetX--">Right</button>
+		<button onclick="offsetY++">Up</button>
+		<button onclick="offsetY--">Down</button>
+	</div>
 	<script>
 		"use strict"
 		var renderer, stage, container, graphics, zoom,
 			world, boxShape, boxBody, planeBody, planeShape;
-			var heightfieldBody;
+		
+		var offsetX = 0;
+		var offsetY = 0;
 		
 		var heightMap = generateHeightMap(123, 200);
 		init();
@@ -24,7 +33,7 @@
 			var r = new Random(seed);
 			var arr = Array(size);
 			for(var i=0;i<size;i++) {
-				if(i < 5)
+				if(i < 10)
 					arr[i] = 0;
 				else if(i < size / 4)
 					arr[i] = (r.next() % 3);
@@ -45,7 +54,7 @@
 			// boxShape.collisionMask = 1;
 			boxBody = new p2.Body({
 				mass:1,
-				position:[0,20],
+				position:[0,3],
 				angularVelocity:1
 			});
 			boxBody.addShape(boxShape);
@@ -56,7 +65,7 @@
 			// planeBody.addShape(planeShape);
 			// world.addBody(planeBody);
 			// Pixi.js zoom level
-			zoom = 15;
+			zoom = 25;
 			// Initialize the stage
 			renderer =	PIXI.autoDetectRenderer(600, 400),
 			// stage = new PIXI.Stage(0xFFFFFF);
@@ -68,8 +77,8 @@
 			// Add the canvas to the DOM
 			document.body.appendChild(renderer.view);
 			// Add transform to the container
-			container.position.x =	renderer.width/2; // center at origin
-			container.position.y =	renderer.height/2;
+			container.position.x =	renderer.width/2 + offsetX; // center at origin
+			container.position.y =	renderer.height/2 + offsetY;
 			container.scale.x =	 zoom;	// zoom in
 			container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 			// Draw the box.
@@ -89,17 +98,17 @@
 			// heightfieldShape.collisionGroup = 1;
 			// heightfieldShape.collisionMask = 2;
 			
-			heightfieldBody = new p2.Body({position:[-15,0], mass: 0});
+			var heightfieldBody = new p2.Body({position:[-step*2,0], mass: 0});
 			heightfieldBody.addShape(heightfieldShape);
 			world.addBody(heightfieldBody);
 			
 			var ground = new PIXI.Graphics();
-			const lineWidth = 0.1;
+			const lineWidth = 0.25;
 			ground.lineStyle(lineWidth, 0x00ff00, 1);
 			// ground.beginFill(0x00ff00, 1);
-			ground.moveTo(-15*step, 0);
+			ground.moveTo(-step*2, 0);
 			for(var i=0;i<heightMap.length;i++){
-				ground.lineTo(i*step-15*step, heightMap[i] - 1);
+				ground.lineTo(i*step-step*2, heightMap[i] - 0.5 * lineWidth);
 			}
 			container.addChild(ground)
 		}
@@ -109,6 +118,12 @@
 			requestAnimationFrame(animate);
 			// Move physics bodies forward in time
 			world.step(1/60);
+			
+			container.position.x =	renderer.width/2 + boxBody.position[0]*zoom + offsetX*zoom; // center at origin
+			container.position.y =	renderer.height/2 + boxBody.position[1]*zoom + offsetY*zoom;
+			container.scale.x =	 zoom;	// zoom in
+			container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
+			
 			// Transfer positions of the physics objects to Pixi.js
 			graphics.position.x = boxBody.position[0];
 			graphics.position.y = boxBody.position[1];
