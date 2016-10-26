@@ -8,7 +8,7 @@ const CAR = 1<<1;
 
 var heightMap = generateHeightMap(123, 250);
 init();
-animate();
+requestAnimationFrame(animate);
 
 function generateHeightMap(seed, size) {
 	var r = new Random(seed);
@@ -261,11 +261,16 @@ function updatePixiItemsFromP2World() {
 	});
 }
 // Animation loop
-function animate(t){
-	t = t || 0;
+var fixedTimeStep = 1 / 60, maxSubSteps = 10, lastTimeMilliseconds;
+function animate(timeMilliseconds){
 	requestAnimationFrame(animate);
 	// Move physics bodies forward in time
-	world.step(1/60);
+	var timeSinceLastCall = 0;
+	if(timeMilliseconds !== undefined && lastTimeMilliseconds !== undefined){
+		timeSinceLastCall = (timeMilliseconds - lastTimeMilliseconds) / 1000;
+	}
+	world.step(fixedTimeStep, timeSinceLastCall, maxSubSteps);
+	lastTimeMilliseconds = timeMilliseconds;
 	
 	stage.position.x =	renderer.width/2 - carBody.position[0]*zoom + offsetX*zoom; // center at origin
 	stage.position.y =	renderer.height/2 + carBody.position[1]*zoom + offsetY*zoom;
