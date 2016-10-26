@@ -1,230 +1,211 @@
 "use strict"
-console.log('game.js');
+var renderer, stage, container, graphics, zoom,
+	world, boxShape, boxBody, planeBody, planeShape, car, carBody, w1circle, w1;
 
-var renderer, stage, world, ctx;
-var b2Vec2 = Box2D.Common.Math.b2Vec2,
-	b2AABB = Box2D.Collision.b2AABB,
-	b2BodyDef = Box2D.Dynamics.b2BodyDef,
-	b2Body = Box2D.Dynamics.b2Body,
-	b2FixtureDef = Box2D.Dynamics.b2FixtureDef,
-	b2Fixture = Box2D.Dynamics.b2Fixture,
-	b2World = Box2D.Dynamics.b2World,
-	b2MassData = Box2D.Collision.Shapes.b2MassData,
-	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape,
-	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape,
-	b2DebugDraw = Box2D.Dynamics.b2DebugDraw,
-	b2MouseJointDef =  Box2D.Dynamics.Joints.b2MouseJointDef,
-	b2RevoluteJointDef =  Box2D.Dynamics.Joints.b2RevoluteJointDef;
+var offsetX = 0;
+var offsetY = 0;
 
-initPIXI();
-initBox2D();
+var heightMap = generateHeightMap(123, 200);
+init();
+animate();
 
-requestAnimationFrame(animate);
-
-function initPIXI() {
-	//Create the renderer
-	renderer = new PIXI.CanvasRenderer(256, 256);
-	renderer.view.style.position = "absolute";
-	renderer.view.style.display = "block";
-	renderer.autoResize = true;
-	renderer.resize(window.innerWidth, window.innerHeight);
-
-	//Add the canvas to the HTML document
-	document.body.appendChild(renderer.view);
-
-	//Create a container object called the `stage`
-	stage = new PIXI.Container();
-
-	//Tell the `renderer` to `render` the `stage`
-	renderer.render(stage);
+function generateHeightMap(seed, size) {
+	var r = new Random(seed);
+	var arr = Array(size);
+	for(var i=0;i<size;i++) {
+		if(i < 10)
+			arr[i] = 0;
+		else if(i < size / 4)
+			arr[i] = (r.next() % 3);
+		else if(i < size / 2)
+			arr[i] = (r.next() % 6);
+		else
+			arr[i] = (r.next() % 10);
+	}
+	arr[0] = 10;
+	return arr;
 }
 
-function initBox2D() {
-	var worldAABB = new b2AABB();
-	worldAABB.lowerBound.Set(-1000, -1000);
-	worldAABB.upperBound.Set(1000, 1000);
+function init(){
+	// Init p2.js
+	const GROUND = 1<<0;
+	const CAR = 1<<1;
 	
-	var gravity = new b2Vec2(0, 100);
-	var doSleep = true;
-	world = new b2World(gravity, doSleep);
-	
-	// addRigidBody(null, true, 200, 150, 25, 37, 0.5);
-	
-	addVertArray(null, 50, 50, [[0,0], [10,0], [0,20]])
-	addVertArray(null, 51, 25, [[0,0], [20,0], [0,20]])
-	addEdge(null, 0, 350, 300, 400)
-	addEdge(null, 300, 400, 600, 300)
-	
-	makeCar();
-}
-
-function makeCar() {
-	var chase = addRigidBody2({
-		dynamic: true,
-		x: 200,
-		y: 150,
-		width: 25,
-		height: 10,
-		density: 0.5
+	world = new p2.World();
+	// Add a box
+	boxShape = new p2.Box({ width: 2, height: 1 });
+	boxShape.collisionGroup = CAR;
+	boxShape.collisionMask = GROUND;
+	boxBody = new p2.Body({
+		mass:1,
+		position:[0,5],
+		angularVelocity:1
 	});
+	boxBody.addShape(boxShape);
+	world.addBody(boxBody);
+	// Add a plane
+	// planeShape = new p2.Plane();
+	// planeBody = new p2.Body({ position:[0,-1] });
+	// planeBody.addShape(planeShape);
+	// world.addBody(planeBody);
+	// Pixi.js zoom level
+	zoom = 25;
+	// Initialize the stage
+	renderer =	PIXI.autoDetectRenderer(600, 400),
+	// stage = new PIXI.Stage(0xFFFFFF);
+	// We use a container inside the stage for all our content
+	// This enables us to zoom and translate the content
+	// container = new PIXI.DisplayObjectContainer(),
+	container = new PIXI.Container(),
+	// stage.addChild(container);
+	// Add the canvas to the DOM
+	document.body.appendChild(renderer.view);
+	renderer.backgroundColor = 0xffffff;
+	// Add transform to the container
+	container.position.x =	renderer.width/2 + offsetX; // center at origin
+	container.position.y =	renderer.height/2 + offsetY;
+	container.scale.x =	 zoom;	// zoom in
+	container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
+	// Draw the box.
+	graphics = new PIXI.Graphics();
+	graphics.beginFill(0xff0000);
+	graphics.drawRect(-boxShape.width/2, -boxShape.height/2, boxShape.width, boxShape.height);
+	// Add the box to our container
+	// container.addChild(graphics);
 	
-	var wheel1 = addCircle({
-		x: 212.5,
-		y: 155,
-		radius: 5,
-		density: 0.5
-	})
+	//add height map
+	const step = 5;
+	var heightfieldShape = new p2.Heightfield({
+		heights: heightMap,
+		elementWidth: step, // Distance between the data points in X direction
+		angle: Math.PI / 2
+	});
+	heightfieldShape.collisionGroup = GROUND;
+	heightfieldShape.collisionMask = CAR;
 	
-	var wheel2 = addCircle({
-		x: 200-12.5,
-		y: 155,
-		radius: 5,
-		density: 0.5
-	})
+	var heightfieldBody = new p2.Body({position:[-step*2,0], mass: 0});
+	heightfieldBody.addShape(heightfieldShape);
+	world.addBody(heightfieldBody);
 	
-	var revJointDef = new b2RevoluteJointDef();
-	revJointDef.Initialize(wheel1.GetBody(), chase.GetBody(), wheel1.GetBody().GetWorldCenter());
-	revJointDef.enableMotor = true;
-	revJointDef.maxMotorTorque = 7500;
-	revJointDef.motorSpeed = -5000;
-	world.CreateJoint(revJointDef);
+	var ground = new PIXI.Graphics();
+	const lineWidth = 0.25;
+	ground.lineStyle(lineWidth, 0x000000, 1);
+	ground.moveTo(-step*2, 10);
+	for(var i=0;i<heightMap.length;i++){
+		ground.lineTo(i*step-step*2, heightMap[i] - 0.5 * lineWidth);
+	}
+	container.addChild(ground);
 	
-	revJointDef.Initialize(wheel2.GetBody(), chase.GetBody(), wheel2.GetBody().GetWorldCenter());
-	revJointDef.enableMotor = true;
-	revJointDef.maxMotorTorque = 7500;
-	revJointDef.motorSpeed = -5000;
-	world.CreateJoint(revJointDef);
-}
+	(function(){
+		car = new PIXI.Container();
+		var chase = [
+			1,
+			1,
+			1,
+			1
+		]
 
-function initBox2DDebug() {
-	ctx = renderer.context;
-	if(!ctx) return;
-	var debugDraw = new b2DebugDraw();
-	debugDraw.SetSprite(ctx);
-	// debugDraw.SetDrawScale(30.0);
-	debugDraw.SetFillAlpha(0.5);
-	debugDraw.SetLineThickness(1.0);
-	debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
-	world.SetDebugDraw(debugDraw);
+		function chaseToPolygon(chase) {
+			var polygon = [];
+			var stepAngle = Math.PI*2/chase.length;
+			var angle;
+			for(var i=0;i<chase.length;i++) {
+				angle = i*stepAngle;
+				polygon.push([
+					Math.cos(angle) * chase[i],
+					Math.sin(angle) * chase[i]
+				])
+			}
+			return polygon;
+		}
+		var polygon = chaseToPolygon(chase);
+		console.log('polygon', polygon)
+		
+		carBody = new p2.Body({position: [0, 2.5], mass: 5});
+		carBody.fromPolygon(polygon);
+		
+		carBody.shapes[0].collisionGroup = CAR;
+		carBody.shapes[0].collisionMask = GROUND;
+		
+		world.addBody(carBody);
+		var centerOfMass = carBody.shapes[0].centerOfMass;
+		
+		var graphic = new PIXI.Graphics();
+		graphic.beginFill(0xff0000, 0.5);
+		var t;
+		for(var s=0;s<carBody.shapes.length;s++) {
+			t = carBody.shapes[s];
+			if(t instanceof p2.Convex) {
+				graphic.moveTo(t.vertices[0][0], t.vertices[0][1]);
+				for(var i=0;i<t.vertices.length;i++) {
+					graphic.lineTo(t.vertices[i][0], t.vertices[i][1])
+				}
+			} else {
+				console.error('can not render', carBody.shapes[s]);
+			}
+		}
+		graphic.endFill();
+		car.addChild(graphic);
+		container.addChild(car);
+		
+		
+		var w1Shape = new p2.Circle({radius: 0.5});
+		w1 = new p2.Body({position: [
+			carBody.shapes[0].vertices[0][0] + carBody.position[0],
+			carBody.shapes[0].vertices[0][1] + carBody.position[1]
+		], mass: 1});
+		w1.addShape(w1Shape);
+		w1Shape.collisionGroup = CAR;
+		w1Shape.collisionMask = GROUND;
+		
+		world.addBody(w1);
+		console.log(carBody, w1);
+		var revolute = new p2.RevoluteConstraint(carBody, w1, {
+			localPivotA: [
+				carBody.shapes[0].vertices[0][0],
+				carBody.shapes[0].vertices[0][1]
+			],
+			localPivotB: [0, 0],
+			collideConnected: false
+		});
+		
+		world.addConstraint(revolute);
+		
+		graphic = new PIXI.Graphics();
+		graphic.beginFill(0x00ff00, 0.5);
+		graphic.drawCircle(0, 0, 0.5);
+		graphic.moveTo(0, 0);
+		graphic.lineStyle(0.1, 0x000000, 1);
+		graphic.lineTo(0.5, 0);
+		container.addChild(graphic);
+		w1circle = graphic;
+	})();
 }
-
-function animate() {
+// Animation loop
+function animate(t){
+	t = t || 0;
 	requestAnimationFrame(animate);
+	// Move physics bodies forward in time
+	world.step(1/60);
 	
-	world.Step(1/60, 10, 10);
+	container.position.x =	renderer.width/2 - (boxBody.position[0]*zoom + offsetX*zoom); // center at origin
+	container.position.y =	renderer.height/2 + boxBody.position[1]*zoom + offsetY*zoom;
+	container.scale.x =	 zoom;	// zoom in
+	container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	
-	//pixi render
-	//renderer.render(stage);
+	// Transfer positions of the physics objects to Pixi.js
+	// graphics.position.x = boxBody.position[0];
+	// graphics.position.y = boxBody.position[1];
+	// graphics.rotation = boxBody.angle;
 	
-	// world.DebugDraw();
-	if(!ctx) {
-		renderer.render(stage);
-		initBox2DDebug();
-	} else {
-		world.DrawDebugData();
-		world.ClearForces();
-	}
-}
-
-function addRigidBody2(opts) {
-	// определение формы тела
-	var shapeDef = new b2FixtureDef();
-	shapeDef.shape = new b2PolygonShape;
-	// размеры (из-за особенностей реализации Box2d, ополовиниваем размеры)
-	shapeDef.shape.SetAsBox(opts.width * 0.5, opts.height * 0.5);
-	// определение тела
-	var bodyDef = new b2BodyDef();
-	if(!!opts.dynamic)
-		bodyDef.type = b2Body.b2_dynamicBody;
-	else
-		bodyDef.type = b2Body.b2_staticBody;
-	bodyDef.position.Set(opts.x, opts.y);
-	// если тело не статическое (имеет плотность)
-	if (opts.density) {
-		shapeDef.density = opts.density;
-	}
-	// трение
-	shapeDef.friction = 0.4;
-	// упругость
-	shapeDef.restitution = 0.3;
-	// немного повернем
-	bodyDef.rotation = 0.8;
+	car.position.x = carBody.position[0];
+	car.position.y = carBody.position[1];
+	car.rotation = carBody.angle;
 	
-	var body = world.CreateBody(bodyDef).CreateFixture(shapeDef);
-	// приколотим спрайт к телу
-	body.m_userData = opts.data;
-	return body;
-}
-
-function addCircle(opts) {
-	// определение формы тела
-	var shapeDef = new b2FixtureDef();
-	shapeDef.shape = new b2CircleShape(opts.radius);
-	// определение тела
-	var bodyDef = new b2BodyDef();
-	bodyDef.type = b2Body.b2_dynamicBody;
-	bodyDef.position.Set(opts.x, opts.y);
-	// если тело не статическое (имеет плотность)
-	if (opts.density) {
-		shapeDef.density = opts.density;
-	}
-	// трение
-	shapeDef.friction = 0.4;
-	// упругость
-	shapeDef.restitution = 0.3;
-	// немного повернем
-	bodyDef.rotation = 0.8;
-	
-	var body = world.CreateBody(bodyDef).CreateFixture(shapeDef);
-	// приколотим спрайт к телу
-	body.m_userData = opts.data;
-	return body;
-}
-
-function addEdge(userData, x1, y1, x2, y2) {
-	// определение формы тела
-	var shapeDef = new b2FixtureDef();
-	shapeDef.shape = new b2PolygonShape;
-	shapeDef.shape.SetAsEdge(new b2Vec2(x1, y1), new b2Vec2(x2, y2))
-	// определение тела
-	var bodyDef = new b2BodyDef();
-	bodyDef.type = b2Body.b2_staticBody;
-	// bodyDef.position.Set(x, y);
-	// плотность
-	shapeDef.density = 0.5;
-	// трение
-	shapeDef.friction = 0.4;
-	// упругость
-	shapeDef.restitution = 0.3;
-	// немного повернем
-	bodyDef.rotation = 0.8;
-	var body = world.CreateBody(bodyDef).CreateFixture(shapeDef);
-	// приколотим спрайт к телу
-	body.m_userData = userData;
-	return body;
-}
-
-function addVertArray(userData, x, y, arr) {
-	// определение формы тела
-	var shapeDef = new b2FixtureDef();
-	shapeDef.shape = new b2PolygonShape;
-	shapeDef.shape.SetAsArray(arr.map(a=>{
-		return new b2Vec2(a[0], a[1])
-	}), arr.length)
-	// определение тела
-	var bodyDef = new b2BodyDef();
-	bodyDef.type = b2Body.b2_dynamicBody;
-	bodyDef.position.Set(x, y);
-	// плотность
-	shapeDef.density = 0.5;
-	// трение
-	shapeDef.friction = 0.4;
-	// упругость
-	shapeDef.restitution = 0.5;
-	// немного повернем
-	bodyDef.rotation = 0.8;
-	var body = world.CreateBody(bodyDef).CreateFixture(shapeDef);
-	// приколотим спрайт к телу
-	body.m_userData = userData;
-	return body;
+	w1circle.position.x = w1.position[0];
+	w1circle.position.y = w1.position[1];
+	w1circle.rotation = w1.angle;
+	// Render scene
+	// renderer.render(stage);
+	renderer.render(container);
 }
