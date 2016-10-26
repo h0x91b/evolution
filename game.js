@@ -1,5 +1,5 @@
 "use strict"
-var renderer, stage, container, graphics, zoom,
+var renderer, stage, stage, graphics, zoom,
 	world, boxShape, boxBody, planeBody, planeShape, car, carBody, w1circle, w1;
 
 var offsetX = 0;
@@ -43,35 +43,23 @@ function init(){
 	});
 	boxBody.addShape(boxShape);
 	world.addBody(boxBody);
-	// Add a plane
-	// planeShape = new p2.Plane();
-	// planeBody = new p2.Body({ position:[0,-1] });
-	// planeBody.addShape(planeShape);
-	// world.addBody(planeBody);
-	// Pixi.js zoom level
 	zoom = 25;
 	// Initialize the stage
-	renderer =	PIXI.autoDetectRenderer(600, 400),
-	// stage = new PIXI.Stage(0xFFFFFF);
-	// We use a container inside the stage for all our content
-	// This enables us to zoom and translate the content
-	// container = new PIXI.DisplayObjectContainer(),
-	container = new PIXI.Container(),
-	// stage.addChild(container);
-	// Add the canvas to the DOM
+	renderer =	PIXI.autoDetectRenderer(600, 400);
+	stage = new PIXI.Container();
 	document.body.appendChild(renderer.view);
 	renderer.backgroundColor = 0xffffff;
-	// Add transform to the container
-	container.position.x =	renderer.width/2 + offsetX; // center at origin
-	container.position.y =	renderer.height/2 + offsetY;
-	container.scale.x =	 zoom;	// zoom in
-	container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
+	// Add transform to the stage
+	stage.position.x =	renderer.width/2 + offsetX; // center at origin
+	stage.position.y =	renderer.height/2 + offsetY;
+	stage.scale.x =	 zoom;	// zoom in
+	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	// Draw the box.
 	graphics = new PIXI.Graphics();
 	graphics.beginFill(0xff0000);
 	graphics.drawRect(-boxShape.width/2, -boxShape.height/2, boxShape.width, boxShape.height);
-	// Add the box to our container
-	// container.addChild(graphics);
+	// Add the box to our stage
+	// stage.addChild(graphics);
 	
 	//add height map
 	const step = 5;
@@ -94,7 +82,7 @@ function init(){
 	for(var i=0;i<heightMap.length;i++){
 		ground.lineTo(i*step-step*2, heightMap[i] - 0.5 * lineWidth);
 	}
-	container.addChild(ground);
+	stage.addChild(ground);
 	
 	(function(){
 		car = new PIXI.Container();
@@ -102,7 +90,7 @@ function init(){
 			1,
 			1,
 			1,
-			1
+			1,
 		]
 
 		function chaseToPolygon(chase) {
@@ -146,7 +134,7 @@ function init(){
 		}
 		graphic.endFill();
 		car.addChild(graphic);
-		container.addChild(car);
+		stage.addChild(car);
 		
 		
 		var w1Shape = new p2.Circle({radius: 0.5});
@@ -177,9 +165,108 @@ function init(){
 		graphic.moveTo(0, 0);
 		graphic.lineStyle(0.1, 0x000000, 1);
 		graphic.lineTo(0.5, 0);
-		container.addChild(graphic);
+		stage.addChild(graphic);
 		w1circle = graphic;
 	})();
+	
+	createPixiFromP2();
+}
+
+function createPixiFromP2() {
+	stage.position.x =	renderer.width/2; // center at origin
+	stage.position.y =	renderer.height/2;
+	
+	stage.removeChildren();
+	
+	world.bodies.forEach(body=>{
+		body.shapes.forEach(shape=>{
+			if(shape instanceof p2.Box) {
+				box(body, shape);
+			} else if(shape instanceof p2.Circle) {
+				circle(body, shape);
+			} else if(shape instanceof p2.Convex) {
+				convex(body, shape);
+			} else if(shape instanceof p2.Heightfield) {
+				heightfield(body, shape);
+			} else {
+				//unknown shape
+				console.log('unknown shape', shape);
+			}
+		})
+	})
+	
+	function box(p2body, p2shape) {
+		var graphics = new PIXI.Graphics();
+		graphics.p2body = p2body;
+		graphics.p2shape = p2shape;
+		graphics.beginFill(0xff0000, 0.5);
+		graphics.drawRect(-p2shape.width/2, -p2shape.height/2, p2shape.width, p2shape.height);
+		graphics.endFill();
+		stage.addChild(graphics)
+	}
+	
+	function circle(p2body, p2shape) {
+		var graphics = new PIXI.Graphics();
+		graphics.p2body = p2body;
+		graphics.p2shape = p2shape;
+		graphics.beginFill(0x00ff00, 0.5);
+		graphics.drawCircle(0, 0, p2shape.radius);
+		graphics.endFill();
+		graphics.moveTo(0, 0);
+		graphics.lineStyle(0.1, 0x000000, 1);
+		graphics.lineTo(p2shape.radius, 0);
+		stage.addChild(graphics)
+	}
+	
+	function convex(p2body, p2shape) {
+		var graphics = new PIXI.Graphics();
+		graphics.p2body = p2body;
+		graphics.p2shape = p2shape;
+		const lineWidth = 0.1;
+		const lineColor = 0x0000ff;
+		const pointColor = 0x00ffff;
+		var verts = p2shape.vertices;
+		for(var i=0;i<verts.length;i++) {
+			var v0 = verts[i%verts.length],
+				v1 = verts[(i+1)%verts.length],
+				x0 = v0[0],
+				y0 = v0[1],
+				x1 = v1[0],
+				y1 = v1[1];
+				graphics.lineStyle(lineWidth, lineColor, 1);
+				graphics.moveTo(x0,y0);
+				graphics.lineTo(x1,y1);
+				graphics.lineStyle(lineWidth, pointColor, 1);
+				graphics.drawCircle(x0,y0,lineWidth/2);
+		}
+		stage.addChild(graphics)
+	}
+	
+	function heightfield(p2body, p2shape) {
+		var graphics = new PIXI.Graphics();
+		graphics.p2body = p2body;
+		graphics.p2shape = p2shape;
+		const lineWidth = 0.5;
+		graphics.lineStyle(lineWidth, 0x000000, 1);
+		debugger;
+		var x = 0;
+		graphics.moveTo(x, p2shape.heights[0] - lineWidth/2);
+		x+=p2shape.elementWidth
+		for(var i=1;i<p2shape.heights.length;i++) {
+			graphics.lineTo(x, p2shape.heights[i] - lineWidth/2);
+			x+=p2shape.elementWidth
+		}
+		stage.addChild(graphics)
+	}
+}
+
+function updatePixiItemsFromP2World() {
+	stage.children.forEach(child=>{
+		if(!child.p2body) return;
+		child.position.x = child.p2body.position[0];
+		child.position.y = child.p2body.position[1];
+		child.rotation = child.p2body.angle;
+	});
 }
 // Animation loop
 function animate(t){
@@ -188,24 +275,12 @@ function animate(t){
 	// Move physics bodies forward in time
 	world.step(1/60);
 	
-	container.position.x =	renderer.width/2 - (boxBody.position[0]*zoom + offsetX*zoom); // center at origin
-	container.position.y =	renderer.height/2 + boxBody.position[1]*zoom + offsetY*zoom;
-	container.scale.x =	 zoom;	// zoom in
-	container.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
+	stage.position.x =	renderer.width/2 - carBody.position[0]*zoom + offsetX*zoom; // center at origin
+	stage.position.y =	renderer.height/2 + carBody.position[1]*zoom + offsetY*zoom;
+	stage.scale.x =	 zoom;	// zoom in
+	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	
-	// Transfer positions of the physics objects to Pixi.js
-	// graphics.position.x = boxBody.position[0];
-	// graphics.position.y = boxBody.position[1];
-	// graphics.rotation = boxBody.angle;
+	updatePixiItemsFromP2World();
 	
-	car.position.x = carBody.position[0];
-	car.position.y = carBody.position[1];
-	car.rotation = carBody.angle;
-	
-	w1circle.position.x = w1.position[0];
-	w1circle.position.y = w1.position[1];
-	w1circle.rotation = w1.angle;
-	// Render scene
-	// renderer.render(stage);
-	renderer.render(container);
+	renderer.render(stage);
 }
