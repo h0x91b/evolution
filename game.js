@@ -1,9 +1,10 @@
 "use strict"
-var renderer, stage, stage, graphics, zoom,
-	world, boxShape, boxBody, planeBody, planeShape, car, carBody, w1circle, w1;
+var renderer, stage, zoom, world, carBody;
 
 var offsetX = 0;
 var offsetY = 0;
+const GROUND = 1<<0;
+const CAR = 1<<1;
 
 var heightMap = generateHeightMap(123, 200);
 init();
@@ -28,15 +29,13 @@ function generateHeightMap(seed, size) {
 
 function init(){
 	// Init p2.js
-	const GROUND = 1<<0;
-	const CAR = 1<<1;
 	
 	world = new p2.World();
 	// Add a box
-	boxShape = new p2.Box({ width: 2, height: 1 });
+	var boxShape = new p2.Box({ width: 2, height: 1 });
 	boxShape.collisionGroup = CAR;
 	boxShape.collisionMask = GROUND;
-	boxBody = new p2.Body({
+	var boxBody = new p2.Body({
 		mass:1,
 		position:[0,5],
 		angularVelocity:1
@@ -54,12 +53,6 @@ function init(){
 	stage.position.y =	renderer.height/2 + offsetY;
 	stage.scale.x =	 zoom;	// zoom in
 	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
-	// Draw the box.
-	graphics = new PIXI.Graphics();
-	graphics.beginFill(0xff0000);
-	graphics.drawRect(-boxShape.width/2, -boxShape.height/2, boxShape.width, boxShape.height);
-	// Add the box to our stage
-	// stage.addChild(graphics);
 	
 	//add height map
 	const step = 5;
@@ -75,17 +68,7 @@ function init(){
 	heightfieldBody.addShape(heightfieldShape);
 	world.addBody(heightfieldBody);
 	
-	var ground = new PIXI.Graphics();
-	const lineWidth = 0.25;
-	ground.lineStyle(lineWidth, 0x000000, 1);
-	ground.moveTo(-step*2, 10);
-	for(var i=0;i<heightMap.length;i++){
-		ground.lineTo(i*step-step*2, heightMap[i] - 0.5 * lineWidth);
-	}
-	stage.addChild(ground);
-	
 	(function(){
-		car = new PIXI.Container();
 		var chase = [
 			1,
 			1,
@@ -116,29 +99,9 @@ function init(){
 		carBody.shapes[0].collisionMask = GROUND;
 		
 		world.addBody(carBody);
-		var centerOfMass = carBody.shapes[0].centerOfMass;
-		
-		var graphic = new PIXI.Graphics();
-		graphic.beginFill(0xff0000, 0.5);
-		var t;
-		for(var s=0;s<carBody.shapes.length;s++) {
-			t = carBody.shapes[s];
-			if(t instanceof p2.Convex) {
-				graphic.moveTo(t.vertices[0][0], t.vertices[0][1]);
-				for(var i=0;i<t.vertices.length;i++) {
-					graphic.lineTo(t.vertices[i][0], t.vertices[i][1])
-				}
-			} else {
-				console.error('can not render', carBody.shapes[s]);
-			}
-		}
-		graphic.endFill();
-		car.addChild(graphic);
-		stage.addChild(car);
-		
 		
 		var w1Shape = new p2.Circle({radius: 0.5});
-		w1 = new p2.Body({position: [
+		var w1 = new p2.Body({position: [
 			carBody.shapes[0].vertices[0][0] + carBody.position[0],
 			carBody.shapes[0].vertices[0][1] + carBody.position[1]
 		], mass: 1});
@@ -158,15 +121,6 @@ function init(){
 		});
 		
 		world.addConstraint(revolute);
-		
-		graphic = new PIXI.Graphics();
-		graphic.beginFill(0x00ff00, 0.5);
-		graphic.drawCircle(0, 0, 0.5);
-		graphic.moveTo(0, 0);
-		graphic.lineStyle(0.1, 0x000000, 1);
-		graphic.lineTo(0.5, 0);
-		stage.addChild(graphic);
-		w1circle = graphic;
 	})();
 	
 	createPixiFromP2();
@@ -248,7 +202,6 @@ function createPixiFromP2() {
 		graphics.p2shape = p2shape;
 		const lineWidth = 0.5;
 		graphics.lineStyle(lineWidth, 0x000000, 1);
-		debugger;
 		var x = 0;
 		graphics.moveTo(x, p2shape.heights[0] - lineWidth/2);
 		x+=p2shape.elementWidth
