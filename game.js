@@ -6,24 +6,35 @@ var offsetY = 0;
 const GROUND = 1<<0;
 const CAR = 1<<1;
 
-var heightMap = generateHeightMap(123, 200);
+var heightMap = generateHeightMap(123, 250);
 init();
 animate();
 
 function generateHeightMap(seed, size) {
 	var r = new Random(seed);
-	var arr = Array(size);
+	const smooth = 20;
+	var arr = Array(size*smooth);
+	var hardiness;
+	//(r.next() % 100) * 0.01
 	for(var i=0;i<size;i++) {
-		if(i < 10)
-			arr[i] = 0;
-		else if(i < size / 4)
-			arr[i] = (r.next() % 3);
-		else if(i < size / 2)
-			arr[i] = (r.next() % 6);
-		else
-			arr[i] = (r.next() % 10);
+		var from = i > 0 ? arr[i*smooth - 1] : 0;
+		if(i < 10) {
+			hardiness = 0;
+		} else if(i<size*0.25) {
+			hardiness = 0.01;
+		} else if(i<size*0.5) {
+			hardiness = 0.02;
+		} else if(i<size*0.75) {
+			hardiness = 0.03;
+		} else {
+			hardiness = 0.04;
+		}
+		var to = (r.next() % 100) * hardiness;
+		var step = (to-from)/smooth;
+		for(var n=0;n<=smooth;n++) {
+			arr[i*smooth+n] = from+step*n;
+		}
 	}
-	arr[0] = 10;
 	return arr;
 }
 
@@ -55,7 +66,7 @@ function init(){
 	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	
 	//add height map
-	const step = 5;
+	const step = 0.1;
 	var heightfieldShape = new p2.Heightfield({
 		heights: heightMap,
 		elementWidth: step, // Distance between the data points in X direction
@@ -99,7 +110,7 @@ function createCar() {
 	var polygon = chaseToPolygon(chase);
 	console.log('polygon', polygon)
 	
-	var carBody = new p2.Body({position: [0, 2.5], mass: 5});
+	var carBody = new p2.Body({position: [5, 5], mass: 5});
 	carBody.fromPolygon(polygon);
 	
 	carBody.shapes[0].collisionGroup = CAR;
@@ -208,7 +219,7 @@ function createPixiFromP2() {
 		var graphics = new PIXI.Graphics();
 		graphics.p2body = p2body;
 		graphics.p2shape = p2shape;
-		const lineWidth = 0.5;
+		const lineWidth = 0.1;
 		graphics.lineStyle(lineWidth, 0x000000, 1);
 		var x = 0;
 		graphics.moveTo(x, p2shape.heights[0] - lineWidth/2);
