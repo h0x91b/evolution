@@ -1,5 +1,5 @@
 "use strict"
-var renderer, stage, zoom, world, carBody;
+var renderer, stage, zoom, world, carBody, materials = {};
 
 var offsetX = 0;
 var offsetY = 0;
@@ -65,6 +65,23 @@ function init(){
 	stage.scale.x =	 zoom;	// zoom in
 	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	
+	//materials
+	var wheelMaterial = new p2.Material();
+	var steelMaterial = new p2.Material();
+	var groundMaterial = new p2.Material();
+	
+	materials.wheel = wheelMaterial;
+	materials.steel = steelMaterial;
+	materials.ground = groundMaterial;
+	
+	world.addContactMaterial(new p2.ContactMaterial(wheelMaterial, groundMaterial, {
+	    friction : 0.4
+	}));
+	
+	world.addContactMaterial(new p2.ContactMaterial(steelMaterial, groundMaterial, {
+	    friction : 0.2
+	}));
+	
 	//add height map
 	const step = 0.1;
 	var heightfieldShape = new p2.Heightfield({
@@ -74,6 +91,7 @@ function init(){
 	});
 	heightfieldShape.collisionGroup = GROUND;
 	heightfieldShape.collisionMask = CAR;
+	heightfieldShape.material = materials.ground;
 	
 	var heightfieldBody = new p2.Body({position:[-step*2,0], mass: 0});
 	heightfieldBody.addShape(heightfieldShape);
@@ -115,6 +133,7 @@ function createCar() {
 	
 	carBody.shapes[0].collisionGroup = CAR;
 	carBody.shapes[0].collisionMask = GROUND;
+	carBody.material = materials.steel;
 	
 	world.addBody(carBody);
 	
@@ -126,6 +145,7 @@ function createCar() {
 	w1.addShape(w1Shape);
 	w1Shape.collisionGroup = CAR;
 	w1Shape.collisionMask = GROUND;
+	w1Shape.material = materials.wheel;
 	
 	world.addBody(w1);
 	var revolute = new p2.RevoluteConstraint(carBody, w1, {
