@@ -68,62 +68,70 @@ function init(){
 	heightfieldBody.addShape(heightfieldShape);
 	world.addBody(heightfieldBody);
 	
-	(function(){
-		var chase = [
-			1,
-			1,
-			1,
-			1,
-		]
-
-		function chaseToPolygon(chase) {
-			var polygon = [];
-			var stepAngle = Math.PI*2/chase.length;
-			var angle;
-			for(var i=0;i<chase.length;i++) {
-				angle = i*stepAngle;
-				polygon.push([
-					Math.cos(angle) * chase[i],
-					Math.sin(angle) * chase[i]
-				])
-			}
-			return polygon;
-		}
-		var polygon = chaseToPolygon(chase);
-		console.log('polygon', polygon)
-		
-		carBody = new p2.Body({position: [0, 2.5], mass: 5});
-		carBody.fromPolygon(polygon);
-		
-		carBody.shapes[0].collisionGroup = CAR;
-		carBody.shapes[0].collisionMask = GROUND;
-		
-		world.addBody(carBody);
-		
-		var w1Shape = new p2.Circle({radius: 0.5});
-		var w1 = new p2.Body({position: [
-			carBody.shapes[0].vertices[0][0] + carBody.position[0],
-			carBody.shapes[0].vertices[0][1] + carBody.position[1]
-		], mass: 1});
-		w1.addShape(w1Shape);
-		w1Shape.collisionGroup = CAR;
-		w1Shape.collisionMask = GROUND;
-		
-		world.addBody(w1);
-		console.log(carBody, w1);
-		var revolute = new p2.RevoluteConstraint(carBody, w1, {
-			localPivotA: [
-				carBody.shapes[0].vertices[0][0],
-				carBody.shapes[0].vertices[0][1]
-			],
-			localPivotB: [0, 0],
-			collideConnected: false
-		});
-		
-		world.addConstraint(revolute);
-	})();
+	carBody = createCar();
 	
 	createPixiFromP2();
+}
+
+function createCar() {
+	var chase = [
+		0.5,
+		0.5,
+		2,
+		2,
+	]
+	
+	const VERTINDEX = 3;
+
+	function chaseToPolygon(chase) {
+		var polygon = [];
+		var stepAngle = Math.PI*2/chase.length;
+		var angle;
+		for(var i=0;i<chase.length;i++) {
+			angle = i*stepAngle;
+			polygon.push([
+				Math.cos(angle) * chase[i],
+				Math.sin(angle) * chase[i]
+			])
+		}
+		return polygon;
+	}
+	var polygon = chaseToPolygon(chase);
+	console.log('polygon', polygon)
+	
+	var carBody = new p2.Body({position: [0, 2.5], mass: 5});
+	carBody.fromPolygon(polygon);
+	
+	carBody.shapes[0].collisionGroup = CAR;
+	carBody.shapes[0].collisionMask = GROUND;
+	
+	world.addBody(carBody);
+	
+	var w1Shape = new p2.Circle({radius: 0.5});
+	var w1 = new p2.Body({position: [
+		carBody.shapes[0].vertices[VERTINDEX][0] + carBody.position[0],
+		carBody.shapes[0].vertices[VERTINDEX][1] + carBody.position[1]
+	], mass: 10});
+	w1.addShape(w1Shape);
+	w1Shape.collisionGroup = CAR;
+	w1Shape.collisionMask = GROUND;
+	
+	world.addBody(w1);
+	var revolute = new p2.RevoluteConstraint(carBody, w1, {
+		localPivotA: [
+			carBody.shapes[0].vertices[VERTINDEX][0],
+			carBody.shapes[0].vertices[VERTINDEX][1]
+		],
+		localPivotB: [0, 0],
+		collideConnected: false
+	});
+	
+	revolute.enableMotor();
+	revolute.setMotorSpeed(5)
+	
+	world.addConstraint(revolute);
+	
+	return carBody;
 }
 
 function createPixiFromP2() {
