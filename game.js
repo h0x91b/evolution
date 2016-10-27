@@ -7,8 +7,10 @@ const GROUND = 1<<0;
 const CAR = 1<<1;
 
 var heightMap = generateHeightMap(123, 250);
-init();
-requestAnimationFrame(animate);
+setTimeout(function(){
+	init();
+	requestAnimationFrame(animate);
+}, 0);
 
 function generateHeightMap(seed, size) {
 	var r = new Random(seed);
