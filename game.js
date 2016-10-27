@@ -115,7 +115,7 @@ Car.prototype.randomCar = function randomCar() {
 	var edges = Math.floor(Math.random()*7) + 5;
 	var chassisMass = 0;
 	for(i=0;i<edges;i++) {
-		let length = Math.random()*4;
+		let length = Math.random()*3;
 		chassisMass += length;
 		car.chassis.push(length);
 	}
@@ -153,13 +153,16 @@ Car.prototype.toP2 = function toP2() {
 		}
 		return polygon;
 	}
-	var polygon = chaseToPolygon(this.chassis);
 	
 	var carBody = new p2.Body({position: [5, 15], mass: this.chassisMass});
-	carBody.fromPolygon(polygon);
+	var convexPolygons = decomp.decomp(chaseToPolygon(this.chassis));
+	convexPolygons.forEach(c=>{
+		var convex = new p2.Convex({vertices: c});
+		convex.collisionGroup = CAR;
+		convex.collisionMask = GROUND;
+		carBody.addShape(convex);
+	});
 	
-	carBody.shapes[0].collisionGroup = CAR;
-	carBody.shapes[0].collisionMask = GROUND;
 	carBody.material = materials.steel;
 	
 	world.addBody(carBody);
@@ -324,7 +327,7 @@ function updatePixiItemsFromP2World() {
 	});
 }
 // Animation loop
-var fixedTimeStep = 1 / 60, maxSubSteps = 10, lastTimeMilliseconds;
+var fixedTimeStep = 1 / 60, maxSubSteps = 15, lastTimeMilliseconds;
 function animate(timeMilliseconds){
 	requestAnimationFrame(animate);
 	// Move physics bodies forward in time
