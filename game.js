@@ -1,5 +1,5 @@
 "use strict"
-var renderer, stage, zoom, world, carBody, materials = {};
+var renderer, stage, zoom, world, cameraBody, car, materials = {};
 
 var offsetX = 0;
 var offsetY = 0;
@@ -102,15 +102,18 @@ function init(){
 	heightfieldBody.addShape(heightfieldShape);
 	world.addBody(heightfieldBody);
 	
-	carBody = createCar();
+	var carBody = createCar();
 	
-	createPixiFromP2();
+	car = Car.prototype.randomCar();
+	car.toP2();
 }
 
 function Car() {
 	this.chassisMass = 0;
 	this.chassis = [];
 	this.wheels = [];
+	this.bodies = [];
+	this.constraints = [];
 }
 
 //static method
@@ -143,8 +146,66 @@ Car.prototype.randomCar = function randomCar() {
 	return car;
 }
 
+Car.prototype.removeFromP2 = function removeFromP2() {
+	this.constraints.forEach(world.removeConstraint.bind(world));
+	this.bodies.forEach(world.removeBody.bind(world));
+	this.constraints = [];
+	this.bodies = [];
+	createPixiFromP2();
+}
+
 Car.prototype.toP2 = function toP2() {
 	var self = this;
+	
+	var carBody = new p2.Body({position: [10, 5], mass: this.chassisMass});
+	var convexPolygons = decomp.decomp(chaseToPolygon(this.chassis));
+	convexPolygons.forEach(c=>{
+		var convex = new p2.Convex({vertices: c});
+		convex.collisionGroup = CAR;
+		convex.collisionMask = GROUND;
+		carBody.addShape(convex);
+	});
+	
+	carBody.material = materials.steel;
+	world.addBody(carBody);
+	this.bodies.push(carBody);
+	cameraBody = carBody;
+	
+	this.wheels.forEach(w=>{
+		console.log('w', w)
+		var shape = new p2.Circle({radius: w.radius});
+		shape.collisionGroup = CAR;
+		shape.collisionMask = GROUND;
+		shape.material = materials.wheel;
+		var polygon = chaseToPolygon(self.chassis);
+		var x = polygon[w.ptIndex][0] + carBody.position[0];
+		var y = polygon[w.ptIndex][1] + carBody.position[1];
+		var body = new p2.Body({
+			position: [x,y],
+			mass: w.mass
+		});
+		body.addShape(shape);
+		
+		var revolute = new p2.RevoluteConstraint(carBody, body, {
+			localPivotA: [
+				polygon[w.ptIndex][0],
+				polygon[w.ptIndex][1]
+			],
+			localPivotB: [0, 0],
+			collideConnected: false
+		});
+	
+		revolute.enableMotor();
+		revolute.setMotorSpeed(w.motorSpeed);
+		world.addConstraint(revolute)
+		this.constraints.push(revolute);
+		
+		world.addBody(body);
+		this.bodies.push(body);
+	})
+	
+	createPixiFromP2();
+	
 	function chaseToPolygon(chase) {
 		var polygon = [];
 		var stepAngle = Math.PI*2/self.chassis.length;
@@ -158,19 +219,6 @@ Car.prototype.toP2 = function toP2() {
 		}
 		return polygon;
 	}
-	
-	var carBody = new p2.Body({position: [5, 15], mass: this.chassisMass});
-	var convexPolygons = decomp.decomp(chaseToPolygon(this.chassis));
-	convexPolygons.forEach(c=>{
-		var convex = new p2.Convex({vertices: c});
-		convex.collisionGroup = CAR;
-		convex.collisionMask = GROUND;
-		carBody.addShape(convex);
-	});
-	
-	carBody.material = materials.steel;
-	
-	world.addBody(carBody);
 }
 
 function createCar() {
@@ -343,8 +391,10 @@ function animate(timeMilliseconds){
 	world.step(fixedTimeStep, timeSinceLastCall, maxSubSteps);
 	lastTimeMilliseconds = timeMilliseconds;
 	
-	stage.position.x =	renderer.width/2 - carBody.position[0]*zoom + offsetX*zoom; // center at origin
-	stage.position.y =	renderer.height/2 + carBody.position[1]*zoom + offsetY*zoom;
+	if(cameraBody) {
+		stage.position.x =	renderer.width/2 - cameraBody.position[0]*zoom + offsetX*zoom; // center at origin
+		stage.position.y =	renderer.height/2 + cameraBody.position[1]*zoom + offsetY*zoom;
+	}
 	stage.scale.x =	 zoom;	// zoom in
 	stage.scale.y = -zoom; // Note: we flip the y axis to make "up" the physics "up"
 	
