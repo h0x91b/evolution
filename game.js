@@ -77,11 +77,14 @@ function init(){
 	materials.ground = groundMaterial;
 	
 	world.addContactMaterial(new p2.ContactMaterial(wheelMaterial, groundMaterial, {
-	    friction : 0.4
+		friction : 3,
+		restitution: 0.2
 	}));
 	
 	world.addContactMaterial(new p2.ContactMaterial(steelMaterial, groundMaterial, {
-	    friction : 0.2
+		friction : 0.05,
+		// stiffness: 1,
+		restitution: 0
 	}));
 	
 	//add height map
