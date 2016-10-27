@@ -102,12 +102,75 @@ function init(){
 	createPixiFromP2();
 }
 
+function Car() {
+	this.chassisMass = 0;
+	this.chassis = [];
+	this.wheels = [];
+}
+
+//static method
+Car.prototype.randomCar = function randomCar() {
+	var i;
+	var car = new Car;
+	var edges = Math.floor(Math.random()*7) + 5;
+	var chassisMass = 0;
+	for(i=0;i<edges;i++) {
+		let length = Math.random()*4;
+		chassisMass += length;
+		car.chassis.push(length);
+	}
+	var avg = chassisMass / edges;
+	chassisMass = avg * 125; //max 1500 kg
+	car.chassisMass = chassisMass;
+	var wheels = Math.floor(Math.random()*4);
+	for(i=0;i<wheels;i++) {
+		let ptIndex = Math.floor(Math.random() * 100) % edges;
+		let radius = Math.random()*1.5;
+		let motorSpeed = Math.random()*7 + 1;
+		let mass = radius * radius * Math.PI * 14; //max 100kg
+		car.wheels.push({
+			ptIndex: ptIndex,
+			radius: radius,
+			motorSpeed: motorSpeed,
+			mass: mass
+		});
+	}
+	return car;
+}
+
+Car.prototype.toP2 = function toP2() {
+	var self = this;
+	function chaseToPolygon(chase) {
+		var polygon = [];
+		var stepAngle = Math.PI*2/self.chassis.length;
+		var angle;
+		for(var i=0;i<self.chassis.length;i++) {
+			angle = i*stepAngle;
+			polygon.push([
+				Math.cos(angle) * self.chassis[i],
+				Math.sin(angle) * self.chassis[i]
+			]);
+		}
+		return polygon;
+	}
+	var polygon = chaseToPolygon(this.chassis);
+	
+	var carBody = new p2.Body({position: [5, 15], mass: this.chassisMass});
+	carBody.fromPolygon(polygon);
+	
+	carBody.shapes[0].collisionGroup = CAR;
+	carBody.shapes[0].collisionMask = GROUND;
+	carBody.material = materials.steel;
+	
+	world.addBody(carBody);
+}
+
 function createCar() {
 	var chase = [
-		0.5,
-		0.5,
-		2,
-		2,
+		1,
+		1,
+		1,
+		1,
 	]
 	
 	const VERTINDEX = 3;
