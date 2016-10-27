@@ -133,8 +133,10 @@ Car.prototype.randomCar = function randomCar() {
 	var wheels = Math.floor(Math.random()*4);
 	for(i=0;i<wheels;i++) {
 		let ptIndex = Math.floor(Math.random() * 100) % edges;
-		let radius = Math.random()*1.5;
-		let motorSpeed = Math.random()*7 + 1;
+		let radius = Math.random()*1.4 + 0.1;
+		let motorSpeed = Math.random()*10 + 1;
+		if(Math.random() < 0.5)
+			motorSpeed *= -1;
 		let mass = radius * radius * Math.PI * 14; //max 100kg
 		car.wheels.push({
 			ptIndex: ptIndex,
