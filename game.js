@@ -460,7 +460,7 @@ Generation.prototype.newGeneration = function beginRound() {
 		this.cars.push(best.clone());
 		
 		for(;i<cars.length;i++) {
-			if(cars[i].name == best.name) continue;
+			if(bestNames.indexOf(cars[i].name) !== -1) continue;
 			best = cars[i];
 			break;
 		}
