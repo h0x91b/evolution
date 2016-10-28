@@ -141,8 +141,9 @@ Car.prototype.randomCar = function randomCar() {
 		car.chassis.push(length);
 	}
 	var avg = chassisMass / edges;
-	chassisMass = avg * 125; //max 1500 kg
+	chassisMass = avg * 50;
 	car.chassisMass = chassisMass;
+	// console.log('chassisMass', chassisMass);
 	// 50% - 1
 	// 10% - 2
 	// 5% - 3
@@ -161,10 +162,11 @@ Car.prototype.randomCar = function randomCar() {
 	for(i=0;i<wheels;i++) {
 		let ptIndex = Math.floor(Math.random() * 100) % edges;
 		let radius = Math.random()*1.0 + 0.15;
-		let motorSpeed = Math.random()*10 + 1;
-		if(Math.random() < 0.5)
+		let motorSpeed = Math.random()*20 + 1;
+		if(Math.random() < 0.4)
 			motorSpeed *= -1;
 		let mass = radius * radius * Math.PI * 14; //max 100kg
+		// console.log('wheel mass', mass)
 		car.wheels.push({
 			ptIndex: ptIndex,
 			radius: radius,
@@ -188,28 +190,39 @@ Car.prototype.mutate = function mutate() {
 	if(Math.random() < 0.05 && this.chassis.length > 5) {
 		this.chassis.shift();
 	}
+	var chassisMass = 0;
+	for(var i=0;i<this.chassis.length;i++) {
+		chassisMass += this.chassis[i];
+	}
+	var avg = chassisMass / this.chassis.length;
+	this.chassisMass = avg * 50;
+	// console.log('chassisMass', this.chassisMass);
+	
 	this.wheels = this.wheels.map(w=>{
 		//fix ptIndex if edge was removed
 		w.ptIndex = w.ptIndex % this.chassis.length;
-		if(Math.random() < 0.05) {
+		if(Math.random() < 0.1) 
 			w.ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
-		}
-		if(Math.random() < 0.5)
-			w.radius = w.radius + (Math.random() * 0.05)*w.radius;
-		else
-			w.radius = w.radius - (Math.random() * 0.05)*w.radius;
+		
+		if(Math.random() < 0.05)
+			w.radius = Math.random()*1.0 + 0.15;
+		
 		w.mass = w.radius * w.radius * Math.PI * 14; //max 100kg
-		if(Math.random() < 0.5)
-			w.motorSpeed = w.motorSpeed + (Math.random() * 0.05)*w.motorSpeed;
-		else
-			w.motorSpeed = w.motorSpeed - (Math.random() * 0.05)*w.motorSpeed;
+		
+		if(Math.random() < 0.05)
+			w.motorSpeed = Math.random()*20 + 1
+		
+		if(Math.random() < 0.05)
+			w.motorSpeed *= -1;
+		
 		return w;
 	});
+	
 	if(Math.random() < 0.15 && this.wheels.length < 4) {
 		let ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
 		let radius = Math.random()*1.0 + 0.15;
-		let motorSpeed = Math.random()*10 + 1;
-		if(Math.random() < 0.5)
+		let motorSpeed = Math.random()*20 + 1;
+		if(Math.random() < 0.4)
 			motorSpeed *= -1;
 		let mass = radius * radius * Math.PI * 14; //max 100kg
 		this.wheels.push({
@@ -280,7 +293,8 @@ Car.prototype.toP2 = function toP2() {
 				polygon[w.ptIndex][1]
 			],
 			localPivotB: [0, 0],
-			collideConnected: false
+			collideConnected: false,
+			// maxForce: 500
 		});
 	
 		revolute.enableMotor();
@@ -423,7 +437,7 @@ Generation.prototype.newGeneration = function beginRound() {
 			cars[1].clone(),
 			cars[1].clone(),
 			cars[2].clone(),
-			cars[2].clone()
+			Car.prototype.randomCar()
 		];
 		this.cars.forEach(c=>{
 			c.mutate();
@@ -445,7 +459,7 @@ function beginGame() {
 		//calculate score
 		if(car.bodies[0].position[0] > score + 1) {
 			score = car.bodies[0].position[0];
-			console.log('score', score);
+			// console.log('score', score);
 		} else {
 			//kill
 			console.log('kill, last score %s', score);
