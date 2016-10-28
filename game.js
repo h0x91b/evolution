@@ -64,7 +64,7 @@ function init(){
 	// Initialize the stage
 	renderer =	PIXI.autoDetectRenderer(600, 400);
 	stage = new PIXI.Container();
-	document.body.appendChild(renderer.view);
+	document.querySelector('#container').appendChild(renderer.view);
 	renderer.backgroundColor = 0xffffff;
 	// Add transform to the stage
 	stage.position.x =	renderer.width/2 + offsetX; // center at origin
@@ -421,10 +421,12 @@ function Generation() {
 
 Generation.prototype.newGeneration = function beginRound() {
 	this.generation++;
+	document.querySelector('#generation').textContent = this.generation;
 	this.cars.sort((a, b)=>{
 		return b.score - a.score;
 	});
-	console.log('best score from previous generation is', this.cars[0].score)
+	console.log('best score from previous generation is', this.cars[0].score);
+	document.querySelector('#best_score').textContent = this.cars[0].score.toFixed(2);
 	if(this.generation > 1) {
 		let cars = this.cars;
 		this.cars = [
@@ -451,6 +453,7 @@ function beginGame() {
 	
 	var carIndex = 0;
 	var score = 0;
+	var thisRoundBestScore = 0
 	setInterval(interval, 3000/timeMultiplier);
 	spawnCar();
 	
@@ -459,6 +462,11 @@ function beginGame() {
 		//calculate score
 		if(car.bodies[0].position[0] > score + 1) {
 			score = car.bodies[0].position[0];
+			document.querySelector('#current_score').textContent = score.toFixed(2);
+			if(score > thisRoundBestScore) {
+				thisRoundBestScore = score;
+				document.querySelector('#current_generation_best').textContent = thisRoundBestScore.toFixed(2);
+			}
 			// console.log('score', score);
 		} else {
 			//kill
@@ -475,9 +483,11 @@ function beginGame() {
 			car = null;
 		}
 		console.log('spawnCar', carIndex);
+		document.querySelector('#current_car').textContent = carIndex + 1;
 		car = generation.cars[carIndex++];
 		if(!car) {
 			//generation finished
+			thisRoundBestScore = 0;
 			console.log('generation done');
 			generation.newGeneration();
 			console.log('new generation', generation.generation)
