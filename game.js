@@ -527,7 +527,7 @@ function beginGame() {
 	function interval(){
 		if(!car) return;
 		//calculate score
-		if(car.bodies[0].position[0] > score + 1) {
+		if(car.bodies[0] && car.bodies[0].position[0] > score + 1) {
 			score = car.bodies[0].position[0];
 			document.querySelector('#current_score').textContent = 'Score: '+score.toFixed(2);
 			if(score > bestScore) {
@@ -598,6 +598,8 @@ function animate(timeMilliseconds){
 	if(timeMilliseconds !== undefined && lastTimeMilliseconds !== undefined){
 		timeSinceLastCall = (timeMilliseconds - lastTimeMilliseconds) / 1000;
 	}
+	if(timeSinceLastCall > 3)
+		timeSinceLastCall = 3;
 	world.step(fixedTimeStep, timeSinceLastCall*timeMultiplier, maxSubSteps);
 	lastTimeMilliseconds = timeMilliseconds;
 	
