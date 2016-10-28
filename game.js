@@ -7,7 +7,7 @@ var timeMultiplier = 3;
 const GROUND = 1<<0;
 const CAR = 1<<1;
 
-var heightMap = generateHeightMap(123, 250);
+var heightMap = generateHeightMap(321, 500);
 setTimeout(function(){
 	init();
 	requestAnimationFrame(animate);
@@ -32,7 +32,11 @@ function generateHeightMap(seed, size) {
 		} else {
 			hardiness = 0.04;
 		}
-		var to = (r.next() % 100) * hardiness;
+		var to;
+		if(r.next() % 100 >= 50)
+			to = from + (r.next() % 100) * hardiness;
+		else
+			to = from - (r.next() % 100) * hardiness;
 		var step = (to-from)/smooth;
 		for(var n=0;n<=smooth;n++) {
 			arr[i*smooth+n] = from+step*n;
