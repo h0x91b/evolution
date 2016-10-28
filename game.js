@@ -233,14 +233,23 @@ Car.prototype.toP2 = function toP2() {
 	
 	var carBody = new p2.Body({position: [10, 5], mass: this.chassisMass});
 	var polygon = chaseToPolygon(this.chassis);
-	decomp.makeCCW(polygon);
-	var convexPolygons = decomp.decomp(polygon);
-	convexPolygons.forEach(c=>{
-		var convex = new p2.Convex({vertices: c});
+	
+	var contour = polygon.map(p=>{
+		return new poly2tri.Point(p[0], p[1])
+	});
+	var swctx = new poly2tri.SweepContext(contour);
+	swctx.triangulate();
+	var triangles = swctx.getTriangles();
+	
+	triangles.forEach(t=>{
+		var points = t.getPoints()
+		var convex = new p2.Convex({vertices: points.map(p=>{
+			return [p.x, p.y];
+		})})
 		convex.collisionGroup = CAR;
 		convex.collisionMask = GROUND;
 		carBody.addShape(convex);
-	});
+	})
 	
 	carBody.material = materials.steel;
 	world.addBody(carBody);
