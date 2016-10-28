@@ -130,7 +130,21 @@ Car.prototype.randomCar = function randomCar() {
 	var avg = chassisMass / edges;
 	chassisMass = avg * 125; //max 1500 kg
 	car.chassisMass = chassisMass;
-	var wheels = Math.floor(Math.random()*4);
+	// 50% - 1
+	// 10% - 2
+	// 5% - 3
+	// 1% - 4
+	var wheels = 0;
+	var rnd = Math.random()*100;
+	if(rnd > 99) {
+		wheels = 4;
+	} else if(rnd > 94) {
+		wheels = 3;
+	} else if(rnd > 89) {
+		wheels = 2;
+	} else if(rnd > 50) {
+		wheels = 1;
+	}
 	for(i=0;i<wheels;i++) {
 		let ptIndex = Math.floor(Math.random() * 100) % edges;
 		let radius = Math.random()*1.4 + 0.1;
@@ -147,6 +161,55 @@ Car.prototype.randomCar = function randomCar() {
 	}
 	return car;
 }
+
+Car.prototype.mutate = function mutate() {
+	this.chassis = this.chassis.map(l=>{
+		if(Math.random() < 0.5)
+			return l + (Math.random() * 0.05)*l;
+		else
+			return l - (Math.random() * 0.05)*l;
+	});
+	if(Math.random() < 0.05 && this.chassis.length < 12) {
+		this.chassis.push(Math.random()*3);
+	}
+	if(Math.random() < 0.05 && this.chassis.length > 5) {
+		this.chassis.shift();
+	}
+	this.wheels = this.wheels.map(w=>{
+		//fix ptIndex if edge was removed
+		w.ptIndex = w.ptIndex % this.chassis.length;
+		if(Math.random() < 0.05) {
+			w.ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
+		}
+		if(Math.random() < 0.5)
+			w.radius = w.radius + (Math.random() * 0.05)*w.radius;
+		else
+			w.radius = w.radius - (Math.random() * 0.05)*w.radius;
+		w.mass = w.radius * w.radius * Math.PI * 14; //max 100kg
+		if(Math.random() < 0.5)
+			w.motorSpeed = w.motorSpeed + (Math.random() * 0.05)*w.motorSpeed;
+		else
+			w.motorSpeed = w.motorSpeed - (Math.random() * 0.05)*w.motorSpeed;
+		return w;
+	});
+	if(Math.random() < 0.15 && this.wheels.length < 4) {
+		let ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
+		let radius = Math.random()*1.4 + 0.1;
+		let motorSpeed = Math.random()*10 + 1;
+		if(Math.random() < 0.5)
+			motorSpeed *= -1;
+		let mass = radius * radius * Math.PI * 14; //max 100kg
+		this.wheels.push({
+			ptIndex: ptIndex,
+			radius: radius,
+			motorSpeed: motorSpeed,
+			mass: mass
+		});
+	}
+	if(Math.random() < 0.05) {
+		this.wheels.shift();
+	}
+};
 
 Car.prototype.removeFromP2 = function removeFromP2() {
 	this.constraints.forEach(world.removeConstraint.bind(world));
