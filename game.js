@@ -3,6 +3,7 @@ var renderer, stage, zoom, world, cameraBody, car, materials = {};
 
 var offsetX = 0;
 var offsetY = 0;
+var timeMultiplier = 3;
 const GROUND = 1<<0;
 const CAR = 1<<1;
 
@@ -101,19 +102,27 @@ function init(){
 	var heightfieldBody = new p2.Body({position:[-step*2,0], mass: 0});
 	heightfieldBody.addShape(heightfieldShape);
 	world.addBody(heightfieldBody);
-	
-	var carBody = createCar();
-	
-	car = Car.prototype.randomCar();
-	car.toP2();
+		
+	beginGame();
 }
 
 function Car() {
 	this.chassisMass = 0;
+	this.score = 0;
 	this.chassis = [];
 	this.wheels = [];
 	this.bodies = [];
 	this.constraints = [];
+}
+
+Car.prototype.clone = function clone() {
+	var car = new Car;
+	car.chassisMass = this.chassisMass;
+	car.chassis = this.chassis.slice(0);
+	car.wheels = this.wheels.map(w=>{
+		return JSON.parse(JSON.stringify(w));
+	});
+	return car;
 }
 
 //static method
@@ -286,69 +295,6 @@ Car.prototype.toP2 = function toP2() {
 	}
 }
 
-function createCar() {
-	var chase = [
-		1,
-		1,
-		1,
-		1,
-	]
-	
-	const VERTINDEX = 3;
-
-	function chaseToPolygon(chase) {
-		var polygon = [];
-		var stepAngle = Math.PI*2/chase.length;
-		var angle;
-		for(var i=0;i<chase.length;i++) {
-			angle = i*stepAngle;
-			polygon.push([
-				Math.cos(angle) * chase[i],
-				Math.sin(angle) * chase[i]
-			])
-		}
-		return polygon;
-	}
-	var polygon = chaseToPolygon(chase);
-	console.log('polygon', polygon)
-	
-	var carBody = new p2.Body({position: [5, 5], mass: 5});
-	carBody.fromPolygon(polygon);
-	
-	carBody.shapes[0].collisionGroup = CAR;
-	carBody.shapes[0].collisionMask = GROUND;
-	carBody.material = materials.steel;
-	
-	world.addBody(carBody);
-	
-	var w1Shape = new p2.Circle({radius: 0.5});
-	var w1 = new p2.Body({position: [
-		carBody.shapes[0].vertices[VERTINDEX][0] + carBody.position[0],
-		carBody.shapes[0].vertices[VERTINDEX][1] + carBody.position[1]
-	], mass: 10});
-	w1.addShape(w1Shape);
-	w1Shape.collisionGroup = CAR;
-	w1Shape.collisionMask = GROUND;
-	w1Shape.material = materials.wheel;
-	
-	world.addBody(w1);
-	var revolute = new p2.RevoluteConstraint(carBody, w1, {
-		localPivotA: [
-			carBody.shapes[0].vertices[VERTINDEX][0],
-			carBody.shapes[0].vertices[VERTINDEX][1]
-		],
-		localPivotB: [0, 0],
-		collideConnected: false
-	});
-	
-	revolute.enableMotor();
-	revolute.setMotorSpeed(5)
-	
-	world.addConstraint(revolute);
-	
-	return carBody;
-}
-
 function createPixiFromP2() {
 	stage.position.x =	renderer.width/2; // center at origin
 	stage.position.y =	renderer.height/2;
@@ -436,6 +382,81 @@ function createPixiFromP2() {
 	}
 }
 
+function Generation() {
+	const CARS = 10;
+	this.generation = 0;
+	this.cars = [];
+	for(var i=0;i<CARS;i++) {
+		this.cars.push(Car.prototype.randomCar());
+	}
+}
+
+Generation.prototype.newGeneration = function beginRound() {
+	this.generation++;
+	this.cars.sort((a, b)=>{
+		return b.score - a.score;
+	});
+	if(this.generation > 1) {
+		let cars = this.cars;
+		this.cars = [
+			cars[0].clone(),
+			cars[0].clone(),
+			cars[0].clone(),
+			cars[0].clone(),
+			cars[0].clone(),
+			cars[1].clone(),
+			cars[1].clone(),
+			cars[1].clone(),
+			cars[2].clone(),
+			cars[2].clone()
+		];
+		this.cars.forEach(c=>{
+			c.mutate();
+		})
+	}
+}
+
+function beginGame() {
+	var generation = new Generation();
+	generation.newGeneration();
+	
+	var carIndex = 0;
+	var score = 0;
+	setInterval(interval, 3000/timeMultiplier);
+	spawnCar();
+	
+	function interval(){
+		if(!car) return;
+		//calculate score
+		if(car.bodies[0].position[0] > score + 1) {
+			score = car.bodies[0].position[0];
+			console.log('score', score);
+		} else {
+			//kill
+			console.log('kill, last score %s', score);
+			car.score = score;
+			score = 0;
+			spawnCar();
+		}
+	}
+	
+	function spawnCar() {
+		if(car) {
+			car.removeFromP2();
+			car = null;
+		}
+		car = generation.cars[carIndex++];
+		if(!car) {
+			//generation finished
+			generation.newGeneration();
+			carIndex = 0;
+			spawnCar();
+			return;
+		}
+		car.toP2();
+	}
+}
+
 function updatePixiItemsFromP2World() {
 	stage.children.forEach(child=>{
 		if(!child.p2body) return;
@@ -453,7 +474,7 @@ function animate(timeMilliseconds){
 	if(timeMilliseconds !== undefined && lastTimeMilliseconds !== undefined){
 		timeSinceLastCall = (timeMilliseconds - lastTimeMilliseconds) / 1000;
 	}
-	world.step(fixedTimeStep, timeSinceLastCall, maxSubSteps);
+	world.step(fixedTimeStep, timeSinceLastCall*timeMultiplier, maxSubSteps);
 	lastTimeMilliseconds = timeMilliseconds;
 	
 	if(cameraBody) {
