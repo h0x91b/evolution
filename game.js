@@ -283,8 +283,7 @@ Car.prototype.toP2 = function toP2() {
 	} catch(e) {
 		//this polygon can not be triangulated
 		//https://github.com/r3mi/poly2tri.js/issues/2
-		self.mutate();
-		return self.toP2();
+		return Car.prototype.randomCar().toP2();
 	}
 	var triangles = swctx.getTriangles();
 	
