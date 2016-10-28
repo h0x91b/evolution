@@ -154,19 +154,19 @@ Car.prototype.clone = function clone() {
 Car.prototype.randomCar = function randomCar() {
 	var i;
 	var car = new Car;
-	var edges = Math.floor(Math.random()*7) + 5;
+	var edges = Math.floor(Math.random()*4) + 6;
 	var chassisMass = 0;
 	for(i=0;i<edges;i++) {
-		let length = Math.random()*3;
+		let length = Math.random()*3 + 0.15;
 		chassisMass += length;
-		car.chassis.push(length);
+		car.chassis.push([Math.random()*2*Math.PI, length]);
 	}
 	var avg = chassisMass / edges;
 	chassisMass = avg * 50;
 	car.chassisMass = chassisMass;
 	// console.log('chassisMass', chassisMass);
-	// 50% - 1
-	// 10% - 2
+	// 75% - 1
+	// 25% - 2
 	// 5% - 3
 	// 1% - 4
 	var wheels = 0;
@@ -175,9 +175,9 @@ Car.prototype.randomCar = function randomCar() {
 		wheels = 4;
 	} else if(rnd > 94) {
 		wheels = 3;
-	} else if(rnd > 89) {
+	} else if(rnd > 75) {
 		wheels = 2;
-	} else if(rnd > 50) {
+	} else if(rnd > 25) {
 		wheels = 1;
 	}
 	for(i=0;i<wheels;i++) {
@@ -205,18 +205,18 @@ Car.prototype.mutate = function mutate() {
 	this.mutations++;
 	this.chassis = this.chassis.map(l=>{
 		if(Math.random() < 0.05)
-			return Math.random()*3;
+			return [Math.random()*2*Math.PI, Math.random()*3 + 0.15];
 		return l;
 	});
-	if(Math.random() < 0.05 && this.chassis.length < 12) {
-		this.chassis.push(Math.random()*3);
+	if(Math.random() < 0.05 && this.chassis.length < 10) {
+		this.chassis.push([Math.random()*2*Math.PI, Math.random()*3 + 0.15]);
 	}
-	if(Math.random() < 0.05 && this.chassis.length > 5) {
+	if(Math.random() < 0.05 && this.chassis.length > 6) {
 		this.chassis.splice(Math.floor(Math.random() * this.chassis.length), 1);
 	}
 	var chassisMass = 0;
 	for(var i=0;i<this.chassis.length;i++) {
-		chassisMass += this.chassis[i];
+		chassisMass += this.chassis[i][1];
 	}
 	var avg = chassisMass / this.chassis.length;
 	this.chassisMass = avg * 50;
@@ -273,15 +273,22 @@ Car.prototype.removeFromP2 = function removeFromP2() {
 Car.prototype.toP2 = function toP2() {
 	var self = this;
 	
-	var carBody = new p2.Body({position: [10, 5], mass: this.chassisMass});
 	var polygon = chaseToPolygon(this.chassis);
-	
 	var contour = polygon.map(p=>{
 		return new poly2tri.Point(p[0], p[1])
 	});
 	var swctx = new poly2tri.SweepContext(contour);
-	swctx.triangulate();
+	try {
+		swctx.triangulate();
+	} catch(e) {
+		//this polygon can not be triangulated
+		//https://github.com/r3mi/poly2tri.js/issues/2
+		self.mutate();
+		return self.toP2();
+	}
 	var triangles = swctx.getTriangles();
+	
+	var carBody = new p2.Body({position: [10, 5], mass: this.chassisMass});
 	
 	triangles.forEach(t=>{
 		var points = t.getPoints()
@@ -335,14 +342,14 @@ Car.prototype.toP2 = function toP2() {
 	createPixiFromP2();
 	
 	function chaseToPolygon(chase) {
+		chase.sort((a, b)=>{
+			return a[0] - b[0]
+		})
 		var polygon = [];
-		var stepAngle = Math.PI*2/self.chassis.length;
-		var angle;
 		for(var i=0;i<self.chassis.length;i++) {
-			angle = i*stepAngle;
 			polygon.push([
-				Math.cos(angle) * self.chassis[i],
-				Math.sin(angle) * self.chassis[i]
+				Math.cos(self.chassis[i][0]) * self.chassis[i][1],
+				Math.sin(self.chassis[i][0]) * self.chassis[i][1]
 			]);
 		}
 		return polygon;
@@ -440,14 +447,14 @@ function Generation() {
 	const CARS = 15;
 	this.generation = 0;
 	this.cars = [];
-	if(localStorage.getItem('bestCar')) {
-		var json = JSON.parse(localStorage.getItem('bestCar'));
-		var car = new Car;
-		car.chassis = json.chassis;
-		car.wheels = json.wheels;
-		car.mutate();
-		this.cars.push(car);
-	}
+	// if(localStorage.getItem('bestCar')) {
+	// 	var json = JSON.parse(localStorage.getItem('bestCar'));
+	// 	var car = new Car;
+	// 	car.chassis = json.chassis;
+	// 	car.wheels = json.wheels;
+	// 	car.mutate();
+	// 	this.cars.push(car);
+	// }
 	for(var i=0;i<CARS;i++) {
 		this.cars.push(Car.prototype.randomCar());
 	}
@@ -533,9 +540,9 @@ function beginGame() {
 			//kill
 			console.log('kill, last score %s', score);
 			car.score = score;
-			if(car.score === bestScore) {
-				localStorage.setItem('bestCar', JSON.stringify({chassis: car.chassis, wheels: car.wheels}, null, '\t'));
-			}
+			// if(car.score === bestScore) {
+			// 	localStorage.setItem('bestCar', JSON.stringify({chassis: car.chassis, wheels: car.wheels}, null, '\t'));
+			// }
 			score = 0;
 			printLeaderboard();
 			spawnCar();
