@@ -110,7 +110,11 @@ function init(){
 	beginGame();
 }
 
+var carId = 0;
+
 function Car() {
+	this.name = (++carId).toString(32);
+	this.mutations = 0;
 	this.chassisMass = 0;
 	this.score = 0;
 	this.chassis = [];
@@ -121,6 +125,8 @@ function Car() {
 
 Car.prototype.clone = function clone() {
 	var car = new Car;
+	car.name = this.name;
+	car.mutations = ++this.mutations;
 	car.chassisMass = this.chassisMass;
 	car.chassis = this.chassis.slice(0);
 	car.wheels = this.wheels.map(w=>{
@@ -178,6 +184,7 @@ Car.prototype.randomCar = function randomCar() {
 }
 
 Car.prototype.mutate = function mutate() {
+	this.mutations++;
 	this.chassis = this.chassis.map(l=>{
 		if(Math.random() < 0.5)
 			return l + (Math.random() * 0.05)*l;
@@ -411,7 +418,7 @@ function createPixiFromP2() {
 }
 
 function Generation() {
-	const CARS = 10;
+	const CARS = 15;
 	this.generation = 0;
 	this.cars = [];
 	for(var i=0;i<CARS;i++) {
@@ -422,25 +429,52 @@ function Generation() {
 Generation.prototype.newGeneration = function beginRound() {
 	this.generation++;
 	document.querySelector('#generation').textContent = this.generation;
-	this.cars.sort((a, b)=>{
-		return b.score - a.score;
-	});
 	console.log('best score from previous generation is', this.cars[0].score);
 	document.querySelector('#best_score').textContent = this.cars[0].score.toFixed(2);
 	if(this.generation > 1) {
+		this.cars.sort((a, b)=>{
+			return b.score - a.score;
+		});
+		//find best generations
 		let cars = this.cars;
+		var bestNames = [cars[0].name];
+		var best = cars[0];
 		this.cars = [
 			cars[0].clone(),
 			cars[0].clone(),
 			cars[0].clone(),
 			cars[0].clone(),
-			cars[0].clone(),
-			cars[1].clone(),
-			cars[1].clone(),
-			cars[1].clone(),
-			cars[2].clone(),
-			Car.prototype.randomCar()
+			cars[0].clone()
 		];
+		
+		var i;
+		for(i=1;i<cars.length;i++) {
+			if(bestNames.indexOf(cars[i].name) !== -1) continue;
+			best = cars[i];
+			bestNames.push(best.name);
+			break;
+		}
+		
+		this.cars.push(best.clone());
+		this.cars.push(best.clone());
+		this.cars.push(best.clone());
+		
+		for(;i<cars.length;i++) {
+			if(cars[i].name == best.name) continue;
+			best = cars[i];
+			break;
+		}
+		
+		this.cars.push(best.clone());
+		this.cars.push(best.clone());
+		
+		//random cars
+		this.cars.push(Car.prototype.randomCar());
+		this.cars.push(Car.prototype.randomCar());
+		this.cars.push(Car.prototype.randomCar());
+		this.cars.push(Car.prototype.randomCar());
+		this.cars.push(Car.prototype.randomCar());
+		
 		this.cars.forEach(c=>{
 			c.mutate();
 		})
