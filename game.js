@@ -108,6 +108,24 @@ function init(){
 	world.addBody(heightfieldBody);
 		
 	beginGame();
+	
+	var q = 0;
+	world.on("postStep", function(evt){
+		if(!car) return;
+		var maxVelocity = 12.5;
+		car.bodies.forEach(b=>{
+			if(!b._wheel) return;
+			b.angularForce += b._wheel.motorTorque * (b._wheel.mass/35.0);
+			if(b.angularVelocity > maxVelocity)
+				b.angularVelocity = maxVelocity;
+			if(b.angularVelocity < -maxVelocity)
+				b.angularVelocity = -maxVelocity;
+			
+			if(q++ % 100 === 0) {
+				console.log(b.angularForce, b.angularVelocity);
+			}
+		})
+	});
 }
 
 var carId = 0;
@@ -167,17 +185,17 @@ Car.prototype.randomCar = function randomCar() {
 	}
 	for(i=0;i<wheels;i++) {
 		let ptIndex = Math.floor(Math.random() * 100) % edges;
-		let radius = Math.random()*1.0 + 0.15;
-		let motorSpeed = Math.random()*20 + 1;
-		if(Math.random() < 0.4)
-			motorSpeed *= -1;
+		let radius = Math.random()*1.0 + 0.25;
+		let motorTorque = -Math.random()*250-50;
+		if(Math.random() < 0.25)
+			motorTorque *= -1;
 		let mass = radius * radius * Math.PI * 14; //max 100kg
 		// console.log('wheel mass', mass)
 		car.wheels.push({
 			ptIndex: ptIndex,
 			radius: radius,
-			motorSpeed: motorSpeed,
-			mass: mass
+			motorTorque: motorTorque,
+			mass: mass,
 		});
 	}
 	return car;
@@ -186,16 +204,15 @@ Car.prototype.randomCar = function randomCar() {
 Car.prototype.mutate = function mutate() {
 	this.mutations++;
 	this.chassis = this.chassis.map(l=>{
-		if(Math.random() < 0.5)
-			return l + (Math.random() * 0.05)*l;
-		else
-			return l - (Math.random() * 0.05)*l;
+		if(Math.random() < 0.05)
+			return Math.random()*3;
+		return l;
 	});
 	if(Math.random() < 0.05 && this.chassis.length < 12) {
 		this.chassis.push(Math.random()*3);
 	}
 	if(Math.random() < 0.05 && this.chassis.length > 5) {
-		this.chassis.shift();
+		this.chassis.splice(Math.floor(Math.random() * this.chassis.length), 1);
 	}
 	var chassisMass = 0;
 	for(var i=0;i<this.chassis.length;i++) {
@@ -212,30 +229,30 @@ Car.prototype.mutate = function mutate() {
 			w.ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
 		
 		if(Math.random() < 0.05)
-			w.radius = Math.random()*1.0 + 0.15;
+			w.radius = Math.random()*1.0 + 0.25;
 		
 		w.mass = w.radius * w.radius * Math.PI * 14; //max 100kg
 		
 		if(Math.random() < 0.05)
-			w.motorSpeed = Math.random()*20 + 1
+			w.motorTorque = -Math.random()*250-50
 		
 		if(Math.random() < 0.05)
-			w.motorSpeed *= -1;
+			w.motorTorque *= -1;
 		
 		return w;
 	});
 	
 	if(Math.random() < 0.15 && this.wheels.length < 4) {
 		let ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
-		let radius = Math.random()*1.0 + 0.15;
-		let motorSpeed = Math.random()*20 + 1;
-		if(Math.random() < 0.4)
-			motorSpeed *= -1;
+		let radius = Math.random()*1.0 + 0.25;
+		let motorTorque = -Math.random()*250-50;
+		if(Math.random() < 0.25)
+			motorTorque *= -1;
 		let mass = radius * radius * Math.PI * 14; //max 100kg
 		this.wheels.push({
 			ptIndex: ptIndex,
 			radius: radius,
-			motorSpeed: motorSpeed,
+			motorTorque: motorTorque,
 			mass: mass
 		});
 	}
@@ -293,6 +310,7 @@ Car.prototype.toP2 = function toP2() {
 			mass: w.mass
 		});
 		body.addShape(shape);
+		body._wheel = w;
 		
 		var revolute = new p2.RevoluteConstraint(carBody, body, {
 			localPivotA: [
@@ -304,8 +322,8 @@ Car.prototype.toP2 = function toP2() {
 			// maxForce: 500
 		});
 	
-		revolute.enableMotor();
-		revolute.setMotorSpeed(w.motorSpeed);
+		// revolute.enableMotor();
+		// revolute.setMotorSpeed(w.motorTorque);
 		world.addConstraint(revolute)
 		this.constraints.push(revolute);
 		
@@ -421,6 +439,14 @@ function Generation() {
 	const CARS = 15;
 	this.generation = 0;
 	this.cars = [];
+	if(localStorage.getItem('bestCar')) {
+		var json = JSON.parse(localStorage.getItem('bestCar'));
+		var car = new Car;
+		car.chassis = json.chassis;
+		car.wheels = json.wheels;
+		car.mutate();
+		this.cars.push(car);
+	}
 	for(var i=0;i<CARS;i++) {
 		this.cars.push(Car.prototype.randomCar());
 	}
@@ -430,7 +456,6 @@ Generation.prototype.newGeneration = function beginRound() {
 	this.generation++;
 	document.querySelector('#generation').textContent = 'Generation: '+this.generation;
 	console.log('best score from previous generation is', this.cars[0].score);
-	document.querySelector('#best_score').textContent = 'Best previous score: ' + this.cars[0].score.toFixed(2);
 	if(this.generation > 1) {
 		this.cars.sort((a, b)=>{
 			return b.score - a.score;
@@ -488,7 +513,7 @@ function beginGame() {
 	
 	var carIndex = 0;
 	var score = 0;
-	var thisRoundBestScore = 0
+	var bestScore = 0
 	setInterval(interval, 3000/timeMultiplier);
 	spawnCar();
 	
@@ -498,15 +523,18 @@ function beginGame() {
 		if(car.bodies[0].position[0] > score + 1) {
 			score = car.bodies[0].position[0];
 			document.querySelector('#current_score').textContent = 'Score: '+score.toFixed(2);
-			if(score > thisRoundBestScore) {
-				thisRoundBestScore = score;
-				document.querySelector('#current_generation_best').textContent = thisRoundBestScore.toFixed(2);
+			if(score > bestScore) {
+				bestScore = score;
+				document.querySelector('#best_score').textContent = 'Best score: ' + bestScore.toFixed(2);
 			}
 			// console.log('score', score);
 		} else {
 			//kill
 			console.log('kill, last score %s', score);
 			car.score = score;
+			if(car.score === bestScore) {
+				localStorage.setItem('bestCar', JSON.stringify({chassis: car.chassis, wheels: car.wheels}, null, '\t'));
+			}
 			score = 0;
 			printLeaderboard();
 			spawnCar();
@@ -522,7 +550,6 @@ function beginGame() {
 		car = generation.cars[carIndex++];
 		if(!car) {
 			//generation finished
-			thisRoundBestScore = 0;
 			console.log('generation done');
 			generation.newGeneration();
 			console.log('new generation', generation.generation)
@@ -533,6 +560,7 @@ function beginGame() {
 			document.querySelector('#current_car').textContent = 'Name: '+car.name + '-' + car.mutations;
 		}
 		car.toP2();
+		document.querySelector('#debug').textContent = JSON.stringify({wheels: car.wheels}, null, '\t');
 	}
 }
 
