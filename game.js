@@ -120,10 +120,6 @@ function init(){
 				b.angularVelocity = maxVelocity;
 			if(b.angularVelocity < -maxVelocity)
 				b.angularVelocity = -maxVelocity;
-			
-			if(q++ % 100 === 0) {
-				console.log(b.angularForce, b.angularVelocity);
-			}
 		})
 	});
 }
@@ -139,6 +135,7 @@ function Car() {
 	this.wheels = [];
 	this.bodies = [];
 	this.constraints = [];
+	this.springs = [];
 }
 
 Car.prototype.clone = function clone() {
@@ -196,6 +193,9 @@ Car.prototype.randomCar = function randomCar() {
 			radius: radius,
 			motorTorque: motorTorque,
 			mass: mass,
+			springAngle: Math.random()*2*Math.PI,
+			springStiffness: 100,
+			springSize: 0.5
 		});
 	}
 	return car;
@@ -264,6 +264,7 @@ Car.prototype.mutate = function mutate() {
 Car.prototype.removeFromP2 = function removeFromP2() {
 	this.constraints.forEach(world.removeConstraint.bind(world));
 	this.bodies.forEach(world.removeBody.bind(world));
+	this.springs.forEach(world.removeSpring.bind(world));
 	this.constraints = [];
 	this.bodies = [];
 	createPixiFromP2();
