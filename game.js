@@ -1,5 +1,5 @@
 "use strict"
-var renderer, stage, zoom, world, cameraBody, car, materials = {};
+var renderer, stage, zoom, world, cameraBody, car, materials = {}, generation;
 
 var offsetX = 0;
 var offsetY = 0;
@@ -78,14 +78,14 @@ function init(){
 	materials.ground = groundMaterial;
 	
 	world.addContactMaterial(new p2.ContactMaterial(wheelMaterial, groundMaterial, {
-		friction : 3,
-		restitution: 0.2
+		friction : 2,
+		restitution: 0.3
 	}));
 	
 	world.addContactMaterial(new p2.ContactMaterial(steelMaterial, groundMaterial, {
 		friction : 0.05,
-		// stiffness: 1,
-		restitution: 0
+		stiffness: 5000000,
+		restitution: 0.1
 	}));
 	
 	//add height map
@@ -156,7 +156,7 @@ Car.prototype.randomCar = function randomCar() {
 	}
 	for(i=0;i<wheels;i++) {
 		let ptIndex = Math.floor(Math.random() * 100) % edges;
-		let radius = Math.random()*1.4 + 0.1;
+		let radius = Math.random()*1.0 + 0.15;
 		let motorSpeed = Math.random()*10 + 1;
 		if(Math.random() < 0.5)
 			motorSpeed *= -1;
@@ -203,7 +203,7 @@ Car.prototype.mutate = function mutate() {
 	});
 	if(Math.random() < 0.15 && this.wheels.length < 4) {
 		let ptIndex = Math.floor(Math.random() * 100) % this.chassis.length;
-		let radius = Math.random()*1.4 + 0.1;
+		let radius = Math.random()*1.0 + 0.15;
 		let motorSpeed = Math.random()*10 + 1;
 		if(Math.random() < 0.5)
 			motorSpeed *= -1;
@@ -232,7 +232,9 @@ Car.prototype.toP2 = function toP2() {
 	var self = this;
 	
 	var carBody = new p2.Body({position: [10, 5], mass: this.chassisMass});
-	var convexPolygons = decomp.decomp(chaseToPolygon(this.chassis));
+	var polygon = chaseToPolygon(this.chassis);
+	decomp.makeCCW(polygon);
+	var convexPolygons = decomp.decomp(polygon);
 	convexPolygons.forEach(c=>{
 		var convex = new p2.Convex({vertices: c});
 		convex.collisionGroup = CAR;
@@ -246,7 +248,6 @@ Car.prototype.toP2 = function toP2() {
 	cameraBody = carBody;
 	
 	this.wheels.forEach(w=>{
-		console.log('w', w)
 		var shape = new p2.Circle({radius: w.radius});
 		shape.collisionGroup = CAR;
 		shape.collisionMask = GROUND;
@@ -396,6 +397,7 @@ Generation.prototype.newGeneration = function beginRound() {
 	this.cars.sort((a, b)=>{
 		return b.score - a.score;
 	});
+	console.log('best score from previous generation is', this.cars[0].score)
 	if(this.generation > 1) {
 		let cars = this.cars;
 		this.cars = [
@@ -417,7 +419,7 @@ Generation.prototype.newGeneration = function beginRound() {
 }
 
 function beginGame() {
-	var generation = new Generation();
+	generation = new Generation();
 	generation.newGeneration();
 	
 	var carIndex = 0;
@@ -445,10 +447,13 @@ function beginGame() {
 			car.removeFromP2();
 			car = null;
 		}
+		console.log('spawnCar', carIndex);
 		car = generation.cars[carIndex++];
 		if(!car) {
 			//generation finished
+			console.log('generation done');
 			generation.newGeneration();
+			console.log('new generation', generation.generation)
 			carIndex = 0;
 			spawnCar();
 			return;
