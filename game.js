@@ -428,9 +428,9 @@ function Generation() {
 
 Generation.prototype.newGeneration = function beginRound() {
 	this.generation++;
-	document.querySelector('#generation').textContent = this.generation;
+	document.querySelector('#generation').textContent = 'Generation: '+this.generation;
 	console.log('best score from previous generation is', this.cars[0].score);
-	document.querySelector('#best_score').textContent = this.cars[0].score.toFixed(2);
+	document.querySelector('#best_score').textContent = 'Best previous score: ' + this.cars[0].score.toFixed(2);
 	if(this.generation > 1) {
 		this.cars.sort((a, b)=>{
 			return b.score - a.score;
@@ -479,6 +479,7 @@ Generation.prototype.newGeneration = function beginRound() {
 			c.mutate();
 		})
 	}
+	printLeaderboard();
 }
 
 function beginGame() {
@@ -496,7 +497,7 @@ function beginGame() {
 		//calculate score
 		if(car.bodies[0].position[0] > score + 1) {
 			score = car.bodies[0].position[0];
-			document.querySelector('#current_score').textContent = score.toFixed(2);
+			document.querySelector('#current_score').textContent = 'Score: '+score.toFixed(2);
 			if(score > thisRoundBestScore) {
 				thisRoundBestScore = score;
 				document.querySelector('#current_generation_best').textContent = thisRoundBestScore.toFixed(2);
@@ -507,6 +508,7 @@ function beginGame() {
 			console.log('kill, last score %s', score);
 			car.score = score;
 			score = 0;
+			printLeaderboard();
 			spawnCar();
 		}
 	}
@@ -517,7 +519,6 @@ function beginGame() {
 			car = null;
 		}
 		console.log('spawnCar', carIndex);
-		document.querySelector('#current_car').textContent = carIndex + 1;
 		car = generation.cars[carIndex++];
 		if(!car) {
 			//generation finished
@@ -528,9 +529,21 @@ function beginGame() {
 			carIndex = 0;
 			spawnCar();
 			return;
+		} else {
+			document.querySelector('#current_car').textContent = 'Name: '+car.name + '-' + car.mutations;
 		}
 		car.toP2();
 	}
+}
+
+function printLeaderboard() {
+	var ul = document.querySelector('#leaderboard');
+	ul.innerHTML = '';
+	generation.cars.forEach(c=>{
+		var li = document.createElement('li');
+		li.innerHTML = c.name+'-'+c.mutations+': '+(c.score).toFixed(2);
+		ul.appendChild(li);
+	})
 }
 
 function updatePixiItemsFromP2World() {

@@ -8,6 +8,34 @@
 	<script src="deps/poly2tri.js"></script>
 	<script src="deps/p2.js"></script>
 	<script src="random.js"></script>
+	<style>
+	#current_car {
+		position: absolute;
+		top: 30px;
+		left: 10px;
+	}
+	#current_score {
+		position: absolute;
+		top: 30px;
+		left: 120px;
+	}
+	#generation {
+		position: absolute;
+		top: 30px;
+		left: 230px;
+	}
+	#best_score {
+		position: absolute;
+		top: 30px;
+		left: 340px;
+	}
+	#leaderboard {
+		position: absolute;
+		top: 10px;
+		right: 10px;
+		list-style-type: none;
+	}
+	</style>
   </head>
   <body>
 	<div class="controlls">
@@ -19,11 +47,12 @@
 		<button onclick="offsetY--">Down</button>
 	</div>
 	<div id="container"></div>
-	<div>Generation: <span id="generation">0</span></div>
-	<div>Car number: <span id="current_car">0</span></div>
-	<div>Current car score: <span id="current_score">0</span></div>
+	<span id="generation"></span>
+	<span id="current_car"></span>
+	<span id="current_score"></span>
+	<span id="best_score"></span>
 	<div>Current generation best score: <span id="current_generation_best">0</span></div>
-	<div>Best previous generation score: <span id="best_score">0</span></div>
+	<ul id="leaderboard"></ul>
 	<script src="game.js"></script>
 </body>
 </html>
