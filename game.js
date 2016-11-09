@@ -127,6 +127,7 @@ function init(){
 var carId = 0;
 
 function Car() {
+	this.lifeTime = 0;
 	this.name = (++carId).toString(32);
 	this.mutations = 0;
 	this.chassisMass = 0;
@@ -259,6 +260,7 @@ Car.prototype.mutate = function mutate() {
 	if(Math.random() < 0.05) {
 		this.wheels.shift();
 	}
+	return this;
 };
 
 Car.prototype.removeFromP2 = function removeFromP2() {
@@ -283,7 +285,8 @@ Car.prototype.toP2 = function toP2() {
 	} catch(e) {
 		//this polygon can not be triangulated
 		//https://github.com/r3mi/poly2tri.js/issues/2
-		return Car.prototype.randomCar().toP2();
+		car = Car.prototype.randomCar();
+		return car.toP2();
 	}
 	var triangles = swctx.getTriangles();
 	
@@ -473,10 +476,11 @@ Generation.prototype.newGeneration = function beginRound() {
 		var best = cars[0];
 		this.cars = [
 			cars[0].clone(),
-			cars[0].clone(),
-			cars[0].clone(),
-			cars[0].clone(),
-			cars[0].clone()
+			cars[0].clone().mutate(),
+			cars[0].clone().mutate(),
+			cars[0].clone().mutate(),
+			cars[0].clone().mutate(),
+			cars[0].clone().mutate()
 		];
 		
 		var i;
@@ -488,8 +492,9 @@ Generation.prototype.newGeneration = function beginRound() {
 		}
 		
 		this.cars.push(best.clone());
-		this.cars.push(best.clone());
-		this.cars.push(best.clone());
+		this.cars.push(best.clone().mutate());
+		this.cars.push(best.clone().mutate());
+		this.cars.push(best.clone().mutate());
 		
 		for(;i<cars.length;i++) {
 			if(bestNames.indexOf(cars[i].name) !== -1) continue;
@@ -498,18 +503,12 @@ Generation.prototype.newGeneration = function beginRound() {
 		}
 		
 		this.cars.push(best.clone());
-		this.cars.push(best.clone());
+		this.cars.push(best.clone().mutate());
+		this.cars.push(best.clone().mutate());
 		
 		//random cars
 		this.cars.push(Car.prototype.randomCar());
 		this.cars.push(Car.prototype.randomCar());
-		this.cars.push(Car.prototype.randomCar());
-		this.cars.push(Car.prototype.randomCar());
-		this.cars.push(Car.prototype.randomCar());
-		
-		this.cars.forEach(c=>{
-			c.mutate();
-		})
 	}
 	printLeaderboard();
 }
@@ -520,14 +519,17 @@ function beginGame() {
 	
 	var carIndex = 0;
 	var score = 0;
+	var lifeTime = 0;
 	var bestScore = 0
-	setInterval(interval, 3000/timeMultiplier);
+	setInterval(interval, 500);
 	spawnCar();
 	
 	function interval(){
 		if(!car) return;
+		document.querySelector('#life_time').textContent = 'Life time: '+car.lifeTime.toFixed(1);
 		//calculate score
 		if(car.bodies[0] && car.bodies[0].position[0] > score + 1) {
+			lifeTime = car.lifeTime;
 			score = car.bodies[0].position[0];
 			document.querySelector('#current_score').textContent = 'Score: '+score.toFixed(2);
 			if(score > bestScore) {
@@ -535,7 +537,7 @@ function beginGame() {
 				document.querySelector('#best_score').textContent = 'Best score: ' + bestScore.toFixed(2);
 			}
 			// console.log('score', score);
-		} else {
+		} else if(car.lifeTime > 5) {
 			//kill
 			console.log('kill, last score %s', score);
 			car.score = score;
@@ -543,6 +545,7 @@ function beginGame() {
 			// 	localStorage.setItem('bestCar', JSON.stringify({chassis: car.chassis, wheels: car.wheels}, null, '\t'));
 			// }
 			score = 0;
+			lifeTime = 0;
 			printLeaderboard();
 			spawnCar();
 		}
@@ -567,7 +570,7 @@ function beginGame() {
 			document.querySelector('#current_car').textContent = 'Name: '+car.name + '-' + car.mutations;
 		}
 		car.toP2();
-		document.querySelector('#debug').textContent = JSON.stringify({wheels: car.wheels}, null, '\t');
+		document.querySelector('#debug').textContent = JSON.stringify({chassisMass: car.chassisMass, wheels: car.wheels}, null, '\t');
 	}
 }
 
@@ -598,8 +601,11 @@ function animate(timeMilliseconds){
 	if(timeMilliseconds !== undefined && lastTimeMilliseconds !== undefined){
 		timeSinceLastCall = (timeMilliseconds - lastTimeMilliseconds) / 1000;
 	}
-	if(timeSinceLastCall > 3)
-		timeSinceLastCall = 3;
+	if(timeSinceLastCall > 1)
+		timeSinceLastCall = 1;
+	if(car) {
+		car.lifeTime += timeSinceLastCall*timeMultiplier;
+	}
 	world.step(fixedTimeStep, timeSinceLastCall*timeMultiplier, maxSubSteps);
 	lastTimeMilliseconds = timeMilliseconds;
 	
